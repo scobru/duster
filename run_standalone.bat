@@ -1,0 +1,3 @@
+@echo off
+echo Avvio di Spectra Denoiser (Standalone)...
+start "" "%~dp0build\SpectraDenoiser_artefacts\Release\Standalone\Spectra Denoiser.exe"
