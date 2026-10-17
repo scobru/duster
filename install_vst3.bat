@@ -3,6 +3,13 @@ echo ========================================================
 echo   Installazione Duster VST3 nella DAW...
 echo ========================================================
 
+net session >nul 2>&1
+if %ERRORLEVEL% NEQ 0 (
+    echo [INFO] Riavvio dello script con privilegi di Amministratore...
+    powershell -Command "Start-Process cmd -ArgumentList '/c \"\"%~f0\"\"' -Verb RunAs"
+    exit /b
+)
+
 set "SRC=%~dp0Duster.vst3"
 if not exist "%SRC%" (
     set "SRC=%~dp0build\Duster_artefacts\Release\VST3\Duster.vst3"

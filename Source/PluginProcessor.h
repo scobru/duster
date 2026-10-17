@@ -48,10 +48,42 @@ public:
     void toggleLearning(bool shouldLearn);
     void clearProfile();
 
+    // Audio File Player & Offline Processing (Standalone & DAW)
+    bool loadAudioFile(const juce::File& file);
+    void playAudioFile();
+    void pauseAudioFile();
+    void stopAudioFile();
+    void togglePlayPause();
+    void setLooping(bool shouldLoop);
+    void setPlayheadNormalized(double normPos);
+
+    double getPlayheadNormalized() const;
+    double getPlayheadTimeSeconds() const;
+    double getTotalTimeSeconds() const;
+    juce::String getLoadedFileName() const;
+    bool isFilePlaying() const;
+    bool hasFileLoaded() const;
+    bool isLooping() const;
+
+    bool exportDenoisedFile(const juce::File& destinationFile,
+                            std::function<void(float)> progressCallback = nullptr);
+
 private:
     juce::AudioProcessorValueTreeState apvts;
     dsp::DusterEngine denoiserEngine;
     dsp::SpectrumAnalyzerBridge spectrumBridge;
+
+    // Audio File playback components
+    juce::AudioFormatManager formatManager;
+    juce::CriticalSection fileAudioLock;
+    juce::AudioBuffer<float> fileAudioBuffer;
+    double fileSampleRate { 44100.0 };
+    std::atomic<bool> fileIsLoaded { false };
+    std::atomic<bool> fileIsPlaying { false };
+    std::atomic<bool> fileIsLooping { true };
+    std::atomic<int64_t> filePlayhead { 0 };
+    std::atomic<int64_t> fileTotalSamples { 0 };
+    juce::String loadedFileName;
 
     // Cached raw parameter pointers for audio thread performance
     std::atomic<float>* reductionParam { nullptr };

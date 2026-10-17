@@ -4,6 +4,7 @@
 DusterAudioProcessorEditor::DusterAudioProcessorEditor(DusterAudioProcessor& p)
     : AudioProcessorEditor(&p),
       audioProcessor(p),
+      playerBar(p),
       visualizer(p.getSpectrumBridge()),
       reductionSlider("REDUCTION", "dB", juce::Colour(0xffff9f1c)),
       thresholdSlider("THRESHOLD", "dB", juce::Colour(0xff00d2ff)),
@@ -11,7 +12,10 @@ DusterAudioProcessorEditor::DusterAudioProcessorEditor(DusterAudioProcessor& p)
       transientBoostSlider("TRANSIENT BOOST", "%", juce::Colour(0xff34d399)),
       mixSlider("MIX", "%", juce::Colour(0xfff8fafc))
 {
-    setSize(820, 570);
+    setSize(840, 630);
+
+    // Audio File Player Bar
+    addAndMakeVisible(playerBar);
 
     // Visualizer
     addAndMakeVisible(visualizer);
@@ -139,17 +143,17 @@ void DusterAudioProcessorEditor::paint(juce::Graphics& g)
     // 2. Header Branding
     g.setColour(juce::Colour(0xff00d2ff));
     g.setFont(juce::Font(20.0f, juce::Font::bold));
-    g.drawText("DUSTER", 20, 16, 260, 24, juce::Justification::left);
+    g.drawText("DUSTER", 20, 14, 260, 24, juce::Justification::left);
 
     g.setColour(juce::Colour(0xff64748b));
     g.setFont(juce::Font(10.5f, juce::Font::plain));
-    g.drawText("SPECTRAL SUBTRACTION NOISE SUPPRESSOR • VST3 / AU", 20, 39, 340, 14, juce::Justification::left);
+    g.drawText("SPECTRAL SUBTRACTION NOISE SUPPRESSOR • STANDALONE / VST3", 20, 36, 420, 14, juce::Justification::left);
 
     // 3. Control Sections Boxes
-    auto controlsArea = juce::Rectangle<float>(15.0f, 340.0f, bounds.getWidth() - 30.0f, 215.0f);
+    auto controlsArea = juce::Rectangle<float>(15.0f, 385.0f, bounds.getWidth() - 30.0f, 230.0f);
 
     // Left Box: Denoising Engine
-    auto leftBox = controlsArea.removeFromLeft(535.0f);
+    auto leftBox = controlsArea.removeFromLeft(545.0f);
     g.setColour(juce::Colour(0xff12151f));
     g.fillRoundedRectangle(leftBox, 8.0f);
     g.setColour(juce::Colour(0xff222938));
@@ -170,21 +174,38 @@ void DusterAudioProcessorEditor::paint(juce::Graphics& g)
     g.setFont(juce::Font(11.0f, juce::Font::bold));
     g.setColour(juce::Colour(0xff94a3b8));
     g.drawText("OUTPUT & AUDITION", (int)rightBox.getX() + 16, (int)rightBox.getY() + 10, 200, 16, juce::Justification::left);
+
+    // Drag-and-Drop Overlay Highlight
+    if (isDraggingOver)
+    {
+        g.setColour(juce::Colour(0xd00284c7));
+        g.fillRoundedRectangle(bounds.reduced(10.0f), 12.0f);
+
+        g.setColour(juce::Colour(0xff38bdf8));
+        g.drawRoundedRectangle(bounds.reduced(10.0f), 12.0f, 2.5f);
+
+        g.setFont(juce::Font(22.0f, juce::Font::bold));
+        g.setColour(juce::Colours::white);
+        g.drawText("DROP AUDIO FILE HERE TO LOAD AND DENOISE", bounds, juce::Justification::centred);
+    }
 }
 
 void DusterAudioProcessorEditor::resized()
 {
     // Header Buttons
-    learnButton.setBounds(getWidth() - 225, 18, 140, 32);
-    clearButton.setBounds(getWidth() - 75, 18, 55, 32);
+    learnButton.setBounds(getWidth() - 225, 14, 140, 32);
+    clearButton.setBounds(getWidth() - 75, 14, 55, 32);
+
+    // Player Bar
+    playerBar.setBounds(15, 54, getWidth() - 30, 44);
 
     // Visualizer
-    visualizer.setBounds(15, 62, getWidth() - 30, 265);
+    visualizer.setBounds(15, 106, getWidth() - 30, 265);
 
     // Bottom Sliders in Left Box
-    const int knobY = 370;
-    const int knobW = 120;
-    const int knobH = 165;
+    const int knobY = 415;
+    const int knobW = 125;
+    const int knobH = 175;
 
     reductionSlider.setBounds(25, knobY, knobW, knobH);
     thresholdSlider.setBounds(155, knobY, knobW, knobH);
@@ -192,14 +213,56 @@ void DusterAudioProcessorEditor::resized()
     transientBoostSlider.setBounds(415, knobY, knobW, knobH);
 
     // Right Box Components
-    const int rightX = 575;
-    mixSlider.setBounds(rightX + 10, knobY, 100, knobH);
+    const int rightX = 585;
+    mixSlider.setBounds(rightX + 5, knobY, 105, knobH);
 
     // Combo boxes
-    const int comboX = rightX + 125;
-    listenLabel.setBounds(comboX, 365, 100, 16);
-    listenModeBox.setBounds(comboX, 385, 95, 28);
+    const int comboX = rightX + 115;
+    listenLabel.setBounds(comboX, 415, 100, 16);
+    listenModeBox.setBounds(comboX, 435, 105, 28);
 
-    qualityLabel.setBounds(comboX, 435, 100, 16);
-    qualityBox.setBounds(comboX, 455, 95, 28);
+    qualityLabel.setBounds(comboX, 490, 100, 16);
+    qualityBox.setBounds(comboX, 510, 105, 28);
+}
+
+bool DusterAudioProcessorEditor::isInterestedInFileDrag(const juce::StringArray& files)
+{
+    for (const auto& file : files)
+    {
+        juce::String ext = juce::File(file).getFileExtension().toLowerCase();
+        if (ext == ".wav" || ext == ".mp3" || ext == ".flac" || ext == ".aiff" || ext == ".aif" || ext == ".ogg")
+            return true;
+    }
+    return false;
+}
+
+void DusterAudioProcessorEditor::fileDragEnter(const juce::StringArray&, int, int)
+{
+    isDraggingOver = true;
+    repaint();
+}
+
+void DusterAudioProcessorEditor::fileDragExit(const juce::StringArray&)
+{
+    isDraggingOver = false;
+    repaint();
+}
+
+void DusterAudioProcessorEditor::filesDropped(const juce::StringArray& files, int, int)
+{
+    isDraggingOver = false;
+    repaint();
+
+    for (const auto& filePath : files)
+    {
+        juce::File file(filePath);
+        if (file.existsAsFile())
+        {
+            if (audioProcessor.loadAudioFile(file))
+            {
+                audioProcessor.playAudioFile();
+                break;
+            }
+        }
+    }
 }

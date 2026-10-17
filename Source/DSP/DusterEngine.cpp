@@ -17,17 +17,15 @@ void DusterEngine::prepare(double sampleRate, int maxBlockSize, int numChannels)
     channels.resize(currentChannels);
     for (auto& ch : channels)
     {
-        ch.inputFifo.assign(fftSize * 4, 0.0f);
-        ch.inputFifoIndex = 0;
+        ch.inputHistory.assign(fftSize, 0.0f);
 
-        ch.outputFifo.assign(fftSize * 4, 0.0f);
-        ch.outputFifoIndex = 0;
+        ch.outputBuffer.assign(fftSize * 4, 0.0f);
+        ch.outputReadIndex = 0;
 
-        ch.delayFifo.assign(fftSize * 4, 0.0f);
-        ch.delayFifoIndex = 0;
+        ch.delayBuffer.assign(fftSize * 4, 0.0f);
+        ch.delayWriteIndex = 0;
 
         ch.fftTimeDomain.assign(fftSize * 2, 0.0f);
-        ch.ifftTimeDomain.assign(fftSize * 2, 0.0f);
 
         ch.magnitude.assign(numBins, 0.0f);
         ch.phase.assign(numBins, 0.0f);
@@ -38,6 +36,8 @@ void DusterEngine::prepare(double sampleRate, int maxBlockSize, int numChannels)
         ch.prevEnergySum = 0.0f;
         ch.transientOnset = 0.0f;
     }
+
+    hopCounter = 0;
 
     tempInputMag.assign(numBins, -100.0f);
     tempOutputMag.assign(numBins, -100.0f);
@@ -50,14 +50,20 @@ void DusterEngine::reset()
 {
     for (auto& ch : channels)
     {
-        std::fill(ch.inputFifo.begin(), ch.inputFifo.end(), 0.0f);
-        std::fill(ch.outputFifo.begin(), ch.outputFifo.end(), 0.0f);
-        std::fill(ch.delayFifo.begin(), ch.delayFifo.end(), 0.0f);
+        std::fill(ch.inputHistory.begin(), ch.inputHistory.end(), 0.0f);
+        std::fill(ch.outputBuffer.begin(), ch.outputBuffer.end(), 0.0f);
+        ch.outputReadIndex = 0;
+
+        std::fill(ch.delayBuffer.begin(), ch.delayBuffer.end(), 0.0f);
+        ch.delayWriteIndex = 0;
+
         std::fill(ch.prevMagnitude.begin(), ch.prevMagnitude.end(), 0.0f);
         std::fill(ch.prevEstimatedCleanMag.begin(), ch.prevEstimatedCleanMag.end(), 0.0f);
+        std::fill(ch.spectralGain.begin(), ch.spectralGain.end(), 1.0f);
         ch.prevEnergySum = 0.0f;
         ch.transientOnset = 0.0f;
     }
+    hopCounter = 0;
 }
 
 void DusterEngine::updateFftSize(int newFftOrder)
@@ -164,9 +170,9 @@ void DusterEngine::process(juce::AudioBuffer<float>& buffer)
 {
     const int numSamples = buffer.getNumSamples();
     const int numActiveChannels = std::min(buffer.getNumChannels(), (int)channels.size());
+    if (numActiveChannels <= 0)
+        return;
 
-    // Delay compensation for dry signal & Delta listen:
-    // With 75% overlap WOLA, the algorithmic latency is (fftSize - hopSize) samples.
     const int latencySamples = getLatencySamples();
 
     for (int smp = 0; smp < numSamples; ++smp)
@@ -174,39 +180,30 @@ void DusterEngine::process(juce::AudioBuffer<float>& buffer)
         for (int ch = 0; ch < numActiveChannels; ++ch)
         {
             auto& channel = channels[ch];
-            float inSample = buffer.getSample(ch, smp);
+            const float inSample = buffer.getSample(ch, smp);
 
-            // Store in delay buffer for time-aligned dry/noise-delta
-            channel.delayFifo[channel.delayFifoIndex] = inSample;
-            int delayedReadIndex = (channel.delayFifoIndex - latencySamples + (int)channel.delayFifo.size()) % (int)channel.delayFifo.size();
-            float delayedDrySample = channel.delayFifo[delayedReadIndex];
-            channel.delayFifoIndex = (channel.delayFifoIndex + 1) % (int)channel.delayFifo.size();
+            // 1. Delay compensation ring buffer for time-aligned dry and noise delta
+            const int delayBufSize = (int)channel.delayBuffer.size();
+            channel.delayBuffer[channel.delayWriteIndex] = inSample;
+            int delayedReadIndex = (channel.delayWriteIndex - latencySamples + delayBufSize) % delayBufSize;
+            float delayedDrySample = channel.delayBuffer[delayedReadIndex];
+            channel.delayWriteIndex = (channel.delayWriteIndex + 1) % delayBufSize;
 
-            // Push sample into STFT input FIFO
-            channel.inputFifo[channel.inputFifoIndex] = inSample;
-            channel.inputFifoIndex++;
+            // 2. Retrieve sample from overlap-add output circular buffer and clear
+            const int outBufSize = (int)channel.outputBuffer.size();
+            float outSample = channel.outputBuffer[channel.outputReadIndex];
+            channel.outputBuffer[channel.outputReadIndex] = 0.0f;
+            channel.outputReadIndex = (channel.outputReadIndex + 1) % outBufSize;
 
-            // Process STFT whenever a hop is filled
-            if (channel.inputFifoIndex >= hopSize)
-            {
-                processStftFrame(ch);
-                // Shift input FIFO by hopSize
-                std::copy(channel.inputFifo.begin() + hopSize, channel.inputFifo.begin() + fftSize, channel.inputFifo.begin());
-                channel.inputFifoIndex = fftSize - hopSize;
-            }
+            // 3. Store sample into new incoming hop section of input history
+            channel.inputHistory[fftSize - hopSize + hopCounter] = inSample;
 
-            // Retrieve output sample from overlap-add output FIFO
-            float outSample = channel.outputFifo[0];
-            // Shift output FIFO
-            std::copy(channel.outputFifo.begin() + 1, channel.outputFifo.begin() + fftSize, channel.outputFifo.begin());
-            channel.outputFifo[fftSize - 1] = 0.0f;
-
-            // Route audio according to Listen Mode and Mix
+            // 4. Route audio according to Listen Mode and Mix
             float finalSample = outSample;
 
             if (currentParams.listenMode == ListenMode::NoiseOnly)
             {
-                // Exact extracted noise (Dry delayed - Denoised)
+                // Exact extracted noise (Delayed Dry - Denoised)
                 finalSample = (delayedDrySample - outSample) * currentParams.mix;
             }
             else if (currentParams.listenMode == ListenMode::Bypass)
@@ -221,6 +218,16 @@ void DusterEngine::process(juce::AudioBuffer<float>& buffer)
 
             buffer.setSample(ch, smp, finalSample);
         }
+
+        hopCounter++;
+        if (hopCounter >= hopSize)
+        {
+            hopCounter = 0;
+            for (int ch = 0; ch < numActiveChannels; ++ch)
+            {
+                processStftFrame(ch);
+            }
+        }
     }
 }
 
@@ -231,7 +238,7 @@ void DusterEngine::processStftFrame(int ch)
     // Window the input samples into FFT buffer
     for (int i = 0; i < fftSize; ++i)
     {
-        channel.fftTimeDomain[i] = channel.inputFifo[i] * window[i];
+        channel.fftTimeDomain[i] = channel.inputHistory[i] * window[i];
     }
     // Zero imaginary parts
     std::fill(channel.fftTimeDomain.begin() + fftSize, channel.fftTimeDomain.end(), 0.0f);
@@ -246,6 +253,9 @@ void DusterEngine::processStftFrame(int ch)
         float imag = channel.fftTimeDomain[2 * k + 1];
 
         float mag = std::sqrt(real * real + imag * imag);
+        if (std::isnan(mag) || std::isinf(mag))
+            mag = 0.0f;
+
         channel.magnitude[k] = mag;
         channel.phase[k] = std::atan2(imag, real);
 
@@ -260,12 +270,13 @@ void DusterEngine::processStftFrame(int ch)
         spectrumBridge->pushInputSpectrum(tempInputMag.data(), numBins);
     }
 
-    // Noise learning accumulator
+    // Noise learning accumulator (averaged across channels)
     if (isLearningActive)
     {
+        float chanDiv = 1.0f / (float)std::max(1, (int)channels.size());
         for (int k = 0; k < numBins; ++k)
         {
-            noiseAccumulator[k] += channel.magnitude[k];
+            noiseAccumulator[k] += channel.magnitude[k] * chanDiv;
         }
         if (ch == 0)
             learnedFrameCount++;
@@ -298,12 +309,19 @@ void DusterEngine::processStftFrame(int ch)
     // Inverse FFT: transforms back to real time-domain
     inverseFFT->performRealOnlyInverseTransform(channel.fftTimeDomain.data());
 
-    // Synthesis windowing & Overlap-Add into output FIFO
+    // Synthesis windowing & Overlap-Add into circular output buffer
+    const int outSize = (int)channel.outputBuffer.size();
     for (int i = 0; i < fftSize; ++i)
     {
         float synthSample = channel.fftTimeDomain[i] * window[i] * windowGainCompensation;
-        channel.outputFifo[i] += synthSample;
+        if (std::isnan(synthSample) || std::isinf(synthSample))
+            synthSample = 0.0f;
+        int idx = (channel.outputReadIndex + i) % outSize;
+        channel.outputBuffer[idx] += synthSample;
     }
+
+    // Shift input history by hopSize for next hop
+    std::copy(channel.inputHistory.begin() + hopSize, channel.inputHistory.begin() + fftSize, channel.inputHistory.begin());
 }
 
 void DusterEngine::computeTransientFlux(int ch)
@@ -395,6 +413,8 @@ void DusterEngine::applyDenoising(int ch)
         }
 
         gain = juce::jlimit(spectralFloor, 1.0f, gain);
+        if (std::isnan(gain) || std::isinf(gain))
+            gain = 1.0f;
 
         channel.spectralGain[k] = gain;
         channel.prevEstimatedCleanMag[k] = gain * mag;

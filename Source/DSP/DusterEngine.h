@@ -64,7 +64,7 @@ public:
     juce::String getSerializedProfile() const;
     void restoreProfileFromString(const juce::String& base64);
 
-    int getLatencySamples() const { return fftSize - hopSize; }
+    int getLatencySamples() const { return fftSize - 1; }
 
     void setSpectrumBridge(SpectrumAnalyzerBridge* bridge) { spectrumBridge = bridge; }
 
@@ -89,21 +89,22 @@ private:
     std::vector<float> window;
     float windowGainCompensation { 1.0f };
 
-    // Ring buffers for STFT overlap-add
+    // Circular ring buffers for STFT overlap-add
     struct ChannelBuffers
     {
-        std::vector<float> inputFifo;
-        int inputFifoIndex { 0 };
+        // Sliding history for STFT input: exactly fftSize samples
+        std::vector<float> inputHistory;
 
-        std::vector<float> outputFifo;
-        int outputFifoIndex { 0 };
+        // Circular buffer for STFT overlap-add synthesis
+        std::vector<float> outputBuffer;
+        int outputReadIndex { 0 };
 
-        std::vector<float> delayFifo;
-        int delayFifoIndex { 0 };
+        // Circular buffer for dry delayed audio
+        std::vector<float> delayBuffer;
+        int delayWriteIndex { 0 };
 
         // Time domain FFT scratchpads (size 2 * fftSize)
         std::vector<float> fftTimeDomain;
-        std::vector<float> ifftTimeDomain;
 
         // Spectral representations
         std::vector<float> magnitude;
@@ -120,6 +121,7 @@ private:
     };
 
     std::vector<ChannelBuffers> channels;
+    int hopCounter { 0 };
 
     // Noise Profile (shared across channels or averaged)
     std::vector<float> noiseProfile;          // Linear magnitude per bin

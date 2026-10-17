@@ -14,6 +14,7 @@ DusterAudioProcessor::DusterAudioProcessor()
        apvts(*this, nullptr, "Parameters", createParameterLayout())
 #endif
 {
+    formatManager.registerBasicFormats();
     denoiserEngine.setSpectrumBridge(&spectrumBridge);
 
     reductionParam      = apvts.getRawParameterValue("reduction");
@@ -199,6 +200,47 @@ void DusterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
 
+    // If an audio file is playing, stream it into the buffer
+    if (fileIsPlaying.load(std::memory_order_relaxed) && fileIsLoaded.load(std::memory_order_relaxed))
+    {
+        const juce::ScopedTryLock sl(fileAudioLock);
+        if (sl.isLocked() && fileAudioBuffer.getNumSamples() > 0)
+        {
+            const int numSamples = buffer.getNumSamples();
+            const int totalFileSamples = fileAudioBuffer.getNumSamples();
+            const int fileChannels = fileAudioBuffer.getNumChannels();
+            const int outChannels = buffer.getNumChannels();
+            int64_t currentPos = filePlayhead.load(std::memory_order_relaxed);
+
+            for (int s = 0; s < numSamples; ++s)
+            {
+                if (currentPos >= totalFileSamples)
+                {
+                    if (fileIsLooping.load(std::memory_order_relaxed))
+                    {
+                        currentPos = 0;
+                    }
+                    else
+                    {
+                        fileIsPlaying.store(false, std::memory_order_relaxed);
+                        for (int ch = 0; ch < outChannels; ++ch)
+                            buffer.setSample(ch, s, 0.0f);
+                        continue;
+                    }
+                }
+
+                for (int ch = 0; ch < outChannels; ++ch)
+                {
+                    int srcCh = std::min(ch, fileChannels - 1);
+                    float smp = fileAudioBuffer.getSample(srcCh, (int)currentPos);
+                    buffer.setSample(ch, s, smp);
+                }
+                currentPos++;
+            }
+            filePlayhead.store(currentPos, std::memory_order_relaxed);
+        }
+    }
+
     // Update DSP parameters
     dsp::DenoiserParameters params;
     params.reductionDb    = reductionParam->load();
@@ -237,6 +279,214 @@ void DusterAudioProcessor::clearProfile()
 {
     denoiserEngine.clearNoiseProfile();
     toggleLearning(false);
+}
+
+bool DusterAudioProcessor::loadAudioFile(const juce::File& file)
+{
+    if (!file.existsAsFile())
+        return false;
+
+    std::unique_ptr<juce::AudioFormatReader> reader(formatManager.createReaderFor(file));
+    if (reader == nullptr)
+        return false;
+
+    stopAudioFile();
+
+    const int numChannels = (int)reader->numChannels;
+    const int64_t numSamples = (int64_t)reader->lengthInSamples;
+    const double readerSampleRate = reader->sampleRate;
+
+    if (numSamples <= 0 || numChannels <= 0)
+        return false;
+
+    juce::AudioBuffer<float> tempBuffer(numChannels, (int)numSamples);
+    reader->read(&tempBuffer, 0, (int)numSamples, 0, true, true);
+
+    double currentRate = getSampleRate();
+    double targetRate = (currentRate > 8000.0) ? currentRate : readerSampleRate;
+
+    if (std::abs(readerSampleRate - targetRate) > 1.0)
+    {
+        double ratio = targetRate / readerSampleRate;
+        int targetLength = (int)std::ceil((double)numSamples * ratio);
+        juce::AudioBuffer<float> resampled(numChannels, targetLength);
+
+        for (int ch = 0; ch < numChannels; ++ch)
+        {
+            juce::LagrangeInterpolator interpolator;
+            interpolator.process(ratio,
+                                 tempBuffer.getReadPointer(ch),
+                                 resampled.getWritePointer(ch),
+                                 targetLength);
+        }
+
+        const juce::ScopedLock sl(fileAudioLock);
+        fileAudioBuffer = std::move(resampled);
+        fileSampleRate = targetRate;
+    }
+    else
+    {
+        const juce::ScopedLock sl(fileAudioLock);
+        fileAudioBuffer = std::move(tempBuffer);
+        fileSampleRate = readerSampleRate;
+    }
+
+    loadedFileName = file.getFileName();
+    fileTotalSamples.store(fileAudioBuffer.getNumSamples());
+    filePlayhead.store(0);
+    fileIsLoaded.store(true);
+
+    return true;
+}
+
+void DusterAudioProcessor::playAudioFile()
+{
+    if (fileIsLoaded.load())
+        fileIsPlaying.store(true);
+}
+
+void DusterAudioProcessor::pauseAudioFile()
+{
+    fileIsPlaying.store(false);
+}
+
+void DusterAudioProcessor::stopAudioFile()
+{
+    fileIsPlaying.store(false);
+    filePlayhead.store(0);
+}
+
+void DusterAudioProcessor::togglePlayPause()
+{
+    if (!fileIsLoaded.load())
+        return;
+    fileIsPlaying.store(!fileIsPlaying.load());
+}
+
+void DusterAudioProcessor::setLooping(bool shouldLoop)
+{
+    fileIsLooping.store(shouldLoop);
+}
+
+void DusterAudioProcessor::setPlayheadNormalized(double normPos)
+{
+    int64_t total = fileTotalSamples.load();
+    if (total > 0)
+    {
+        normPos = juce::jlimit(0.0, 1.0, normPos);
+        filePlayhead.store((int64_t)(normPos * (double)total));
+    }
+}
+
+double DusterAudioProcessor::getPlayheadNormalized() const
+{
+    int64_t total = fileTotalSamples.load();
+    if (total <= 0)
+        return 0.0;
+    return juce::jlimit(0.0, 1.0, (double)filePlayhead.load() / (double)total);
+}
+
+double DusterAudioProcessor::getPlayheadTimeSeconds() const
+{
+    if (fileSampleRate <= 0.0)
+        return 0.0;
+    return (double)filePlayhead.load() / fileSampleRate;
+}
+
+double DusterAudioProcessor::getTotalTimeSeconds() const
+{
+    if (fileSampleRate <= 0.0)
+        return 0.0;
+    return (double)fileTotalSamples.load() / fileSampleRate;
+}
+
+juce::String DusterAudioProcessor::getLoadedFileName() const
+{
+    return loadedFileName;
+}
+
+bool DusterAudioProcessor::isFilePlaying() const
+{
+    return fileIsPlaying.load();
+}
+
+bool DusterAudioProcessor::hasFileLoaded() const
+{
+    return fileIsLoaded.load();
+}
+
+bool DusterAudioProcessor::isLooping() const
+{
+    return fileIsLooping.load();
+}
+
+bool DusterAudioProcessor::exportDenoisedFile(const juce::File& destinationFile,
+                                              std::function<void(float)> progressCallback)
+{
+    juce::AudioBuffer<float> sourceCopy;
+    double exportRate = 44100.0;
+    {
+        const juce::ScopedLock sl(fileAudioLock);
+        if (!fileIsLoaded.load() || fileAudioBuffer.getNumSamples() == 0)
+            return false;
+        sourceCopy = fileAudioBuffer;
+        exportRate = fileSampleRate;
+    }
+
+    dsp::DusterEngine exportEngine;
+    exportEngine.prepare(exportRate, 1024, sourceCopy.getNumChannels());
+
+    dsp::DenoiserParameters params;
+    params.reductionDb    = reductionParam->load();
+    params.thresholdDb    = thresholdParam->load();
+    params.residualSmooth = residualSmoothParam->load();
+    params.transientBoost = transientBoostParam->load();
+    params.mix            = mixParam->load();
+    params.listenMode     = static_cast<dsp::ListenMode>((int)listenModeParam->load());
+    params.quality        = static_cast<dsp::QualityMode>((int)qualityParam->load());
+    exportEngine.setParameters(params);
+
+    juce::String profileData = denoiserEngine.getSerializedProfile();
+    if (profileData.isNotEmpty())
+        exportEngine.restoreProfileFromString(profileData);
+
+    const int exportBlockSize = 1024;
+    const int totalSamples = sourceCopy.getNumSamples();
+    juce::AudioBuffer<float> outputBuffer(sourceCopy.getNumChannels(), totalSamples);
+
+    int processed = 0;
+    while (processed < totalSamples)
+    {
+        int chunk = std::min(exportBlockSize, totalSamples - processed);
+        juce::AudioBuffer<float> block(sourceCopy.getNumChannels(), chunk);
+        for (int ch = 0; ch < sourceCopy.getNumChannels(); ++ch)
+            block.copyFrom(ch, 0, sourceCopy, ch, processed, chunk);
+
+        exportEngine.process(block);
+
+        for (int ch = 0; ch < sourceCopy.getNumChannels(); ++ch)
+            outputBuffer.copyFrom(ch, processed, block, ch, 0, chunk);
+
+        processed += chunk;
+        if (progressCallback)
+            progressCallback((float)processed / (float)totalSamples);
+    }
+
+    destinationFile.deleteFile();
+    std::unique_ptr<juce::FileOutputStream> fileStream(destinationFile.createOutputStream());
+    if (fileStream == nullptr)
+        return false;
+
+    juce::WavAudioFormat wavFormat;
+    std::unique_ptr<juce::AudioFormatWriter> writer(wavFormat.createWriterFor(
+        fileStream.get(), exportRate, (unsigned int)outputBuffer.getNumChannels(), 24, {}, 0));
+
+    if (writer == nullptr)
+        return false;
+
+    fileStream.release(); // writer takes ownership
+    writer->writeFromAudioSampleBuffer(outputBuffer, 0, outputBuffer.getNumSamples());
+    return true;
 }
 
 bool DusterAudioProcessor::hasEditor() const

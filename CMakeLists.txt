@@ -54,6 +54,8 @@ target_sources(Duster
         Source/GUI/DusterVisualizer.cpp
         Source/GUI/DusterVisualizer.h
         Source/GUI/CustomRotarySlider.h
+        Source/GUI/AudioFilePlayerBar.cpp
+        Source/GUI/AudioFilePlayerBar.h
 )
 
 target_compile_definitions(Duster
@@ -67,6 +69,7 @@ target_compile_definitions(Duster
 target_link_libraries(Duster
     PRIVATE
         juce::juce_audio_utils
+        juce::juce_audio_formats
         juce::juce_audio_processors
         juce::juce_dsp
         juce::juce_gui_basics

@@ -8,6 +8,8 @@ x64/
 x86/
 Debug/
 Release/
+*.exe
+*.vst3/
 
 # CMake temporary files
 CMakeCache.txt

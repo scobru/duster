@@ -5,9 +5,11 @@
 #include "PluginProcessor.h"
 #include "GUI/DusterVisualizer.h"
 #include "GUI/CustomRotarySlider.h"
+#include "GUI/AudioFilePlayerBar.h"
 
 class DusterAudioProcessorEditor : public juce::AudioProcessorEditor,
-                                   public juce::Timer
+                                   public juce::Timer,
+                                   public juce::FileDragAndDropTarget
 {
 public:
     DusterAudioProcessorEditor(DusterAudioProcessor&);
@@ -17,8 +19,17 @@ public:
     void resized() override;
     void timerCallback() override;
 
+    // File Drag and Drop
+    bool isInterestedInFileDrag(const juce::StringArray& files) override;
+    void fileDragEnter(const juce::StringArray& files, int x, int y) override;
+    void fileDragExit(const juce::StringArray& files) override;
+    void filesDropped(const juce::StringArray& files, int x, int y) override;
+
 private:
     DusterAudioProcessor& audioProcessor;
+
+    // File Player Bar (Standalone & DAW)
+    gui::AudioFilePlayerBar playerBar;
 
     // Visualizer
     gui::DusterVisualizer visualizer;
@@ -57,6 +68,7 @@ private:
 
     bool isLearningActive { false };
     float learnGlowPulse { 0.0f };
+    bool isDraggingOver { false };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DusterAudioProcessorEditor)
 };
