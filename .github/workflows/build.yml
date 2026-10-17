@@ -65,6 +65,10 @@ jobs:
           
           cd ../../../artifacts
           cp ../README.md macOS/ || true
+          if [ -f "../install.command" ]; then
+            cp ../install.command macOS/
+            chmod +x macOS/install.command
+          fi
           zip -r -y Duster-macOS-Universal.zip macOS/
 
       - name: Upload macOS Artifact
@@ -112,6 +116,7 @@ jobs:
           }
           
           # Helper scripts & README
+          if (Test-Path "install.bat") { Copy-Item "install.bat" "artifacts\Windows\" }
           if (Test-Path "install_vst3.bat") { Copy-Item "install_vst3.bat" "artifacts\Windows\" }
           if (Test-Path "run_standalone.bat") { Copy-Item "run_standalone.bat" "artifacts\Windows\" }
           if (Test-Path "README.md") { Copy-Item "README.md" "artifacts\Windows\" }
