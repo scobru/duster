@@ -3,25 +3,25 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "PluginProcessor.h"
-#include "GUI/SpectraVisualizer.h"
+#include "GUI/DusterVisualizer.h"
 #include "GUI/CustomRotarySlider.h"
 
-class SpectraDenoiserAudioProcessorEditor : public juce::AudioProcessorEditor,
-                                           public juce::Timer
+class DusterAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                   public juce::Timer
 {
 public:
-    SpectraDenoiserAudioProcessorEditor(SpectraDenoiserAudioProcessor&);
-    ~SpectraDenoiserAudioProcessorEditor() override;
+    DusterAudioProcessorEditor(DusterAudioProcessor&);
+    ~DusterAudioProcessorEditor() override;
 
     void paint(juce::Graphics&) override;
     void resized() override;
     void timerCallback() override;
 
 private:
-    SpectraDenoiserAudioProcessor& audioProcessor;
+    DusterAudioProcessor& audioProcessor;
 
     // Visualizer
-    gui::SpectraVisualizer visualizer;
+    gui::DusterVisualizer visualizer;
 
     // Header Controls
     juce::TextButton learnButton;
@@ -58,5 +58,5 @@ private:
     bool isLearningActive { false };
     float learnGlowPulse { 0.0f };
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SpectraDenoiserAudioProcessorEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DusterAudioProcessorEditor)
 };

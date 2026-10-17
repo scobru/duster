@@ -1,7 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-SpectraDenoiserAudioProcessorEditor::SpectraDenoiserAudioProcessorEditor(SpectraDenoiserAudioProcessor& p)
+DusterAudioProcessorEditor::DusterAudioProcessorEditor(DusterAudioProcessor& p)
     : AudioProcessorEditor(&p),
       audioProcessor(p),
       visualizer(p.getSpectrumBridge()),
@@ -87,12 +87,12 @@ SpectraDenoiserAudioProcessorEditor::SpectraDenoiserAudioProcessorEditor(Spectra
     startTimerHz(25); // UI status polling
 }
 
-SpectraDenoiserAudioProcessorEditor::~SpectraDenoiserAudioProcessorEditor()
+DusterAudioProcessorEditor::~DusterAudioProcessorEditor()
 {
     stopTimer();
 }
 
-void SpectraDenoiserAudioProcessorEditor::timerCallback()
+void DusterAudioProcessorEditor::timerCallback()
 {
     bool learning = audioProcessor.getAPVTS().getRawParameterValue("learn")->load() > 0.5f;
     bool hasProfile = audioProcessor.getEngine().hasLearnedProfile();
@@ -126,7 +126,7 @@ void SpectraDenoiserAudioProcessorEditor::timerCallback()
     mixSlider.updateValueText();
 }
 
-void SpectraDenoiserAudioProcessorEditor::paint(juce::Graphics& g)
+void DusterAudioProcessorEditor::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat();
 
@@ -139,7 +139,7 @@ void SpectraDenoiserAudioProcessorEditor::paint(juce::Graphics& g)
     // 2. Header Branding
     g.setColour(juce::Colour(0xff00d2ff));
     g.setFont(juce::Font(20.0f, juce::Font::bold));
-    g.drawText("SPECTRA DENOISER", 20, 16, 260, 24, juce::Justification::left);
+    g.drawText("DUSTER", 20, 16, 260, 24, juce::Justification::left);
 
     g.setColour(juce::Colour(0xff64748b));
     g.setFont(juce::Font(10.5f, juce::Font::plain));
@@ -172,7 +172,7 @@ void SpectraDenoiserAudioProcessorEditor::paint(juce::Graphics& g)
     g.drawText("OUTPUT & AUDITION", (int)rightBox.getX() + 16, (int)rightBox.getY() + 10, 200, 16, juce::Justification::left);
 }
 
-void SpectraDenoiserAudioProcessorEditor::resized()
+void DusterAudioProcessorEditor::resized()
 {
     // Header Buttons
     learnButton.setBounds(getWidth() - 225, 18, 140, 32);

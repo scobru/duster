@@ -1,14 +1,14 @@
-#include "SpectralDenoiserEngine.h"
+#include "DusterEngine.h"
 
 namespace dsp
 {
 
-SpectralDenoiserEngine::SpectralDenoiserEngine()
+DusterEngine::DusterEngine()
 {
     updateFftSize(11); // 2048 Default Standard
 }
 
-void SpectralDenoiserEngine::prepare(double sampleRate, int maxBlockSize, int numChannels)
+void DusterEngine::prepare(double sampleRate, int maxBlockSize, int numChannels)
 {
     currentSampleRate = sampleRate;
     currentChannels = std::max(1, numChannels);
@@ -46,7 +46,7 @@ void SpectralDenoiserEngine::prepare(double sampleRate, int maxBlockSize, int nu
     reset();
 }
 
-void SpectralDenoiserEngine::reset()
+void DusterEngine::reset()
 {
     for (auto& ch : channels)
     {
@@ -60,7 +60,7 @@ void SpectralDenoiserEngine::reset()
     }
 }
 
-void SpectralDenoiserEngine::updateFftSize(int newFftOrder)
+void DusterEngine::updateFftSize(int newFftOrder)
 {
     fftOrder = juce::jlimit(10, 12, newFftOrder); // 1024 to 4096
     fftSize = 1 << fftOrder;
@@ -89,7 +89,7 @@ void SpectralDenoiserEngine::updateFftSize(int newFftOrder)
         prepare(currentSampleRate, maxBlock, currentChannels);
 }
 
-void SpectralDenoiserEngine::setParameters(const DenoiserParameters& params)
+void DusterEngine::setParameters(const DenoiserParameters& params)
 {
     // Check if quality setting changed
     int targetOrder = 11;
@@ -115,14 +115,14 @@ void SpectralDenoiserEngine::setParameters(const DenoiserParameters& params)
     }
 }
 
-void SpectralDenoiserEngine::startLearning()
+void DusterEngine::startLearning()
 {
     isLearningActive = true;
     learnedFrameCount = 0;
     std::fill(noiseAccumulator.begin(), noiseAccumulator.end(), 0.0f);
 }
 
-void SpectralDenoiserEngine::stopLearning()
+void DusterEngine::stopLearning()
 {
     if (isLearningActive && learnedFrameCount > 0)
     {
@@ -145,7 +145,7 @@ void SpectralDenoiserEngine::stopLearning()
     isLearningActive = false;
 }
 
-void SpectralDenoiserEngine::clearNoiseProfile()
+void DusterEngine::clearNoiseProfile()
 {
     std::fill(noiseProfile.begin(), noiseProfile.end(), 0.0f);
     std::fill(noiseAccumulator.begin(), noiseAccumulator.end(), 0.0f);
@@ -160,7 +160,7 @@ void SpectralDenoiserEngine::clearNoiseProfile()
     }
 }
 
-void SpectralDenoiserEngine::process(juce::AudioBuffer<float>& buffer)
+void DusterEngine::process(juce::AudioBuffer<float>& buffer)
 {
     const int numSamples = buffer.getNumSamples();
     const int numActiveChannels = std::min(buffer.getNumChannels(), (int)channels.size());
@@ -224,7 +224,7 @@ void SpectralDenoiserEngine::process(juce::AudioBuffer<float>& buffer)
     }
 }
 
-void SpectralDenoiserEngine::processStftFrame(int ch)
+void DusterEngine::processStftFrame(int ch)
 {
     auto& channel = channels[ch];
 
@@ -306,7 +306,7 @@ void SpectralDenoiserEngine::processStftFrame(int ch)
     }
 }
 
-void SpectralDenoiserEngine::computeTransientFlux(int ch)
+void DusterEngine::computeTransientFlux(int ch)
 {
     auto& channel = channels[ch];
     float flux = 0.0f;
@@ -333,7 +333,7 @@ void SpectralDenoiserEngine::computeTransientFlux(int ch)
     std::copy(channel.magnitude.begin(), channel.magnitude.end(), channel.prevMagnitude.begin());
 }
 
-void SpectralDenoiserEngine::applyDenoising(int ch)
+void DusterEngine::applyDenoising(int ch)
 {
     auto& channel = channels[ch];
 
@@ -412,7 +412,7 @@ void SpectralDenoiserEngine::applyDenoising(int ch)
     }
 }
 
-juce::String SpectralDenoiserEngine::getSerializedProfile() const
+juce::String DusterEngine::getSerializedProfile() const
 {
     if (!profileReady || noiseProfile.empty())
         return {};
@@ -426,7 +426,7 @@ juce::String SpectralDenoiserEngine::getSerializedProfile() const
     return juce::Base64::toBase64(stream.getData(), stream.getDataSize());
 }
 
-void SpectralDenoiserEngine::restoreProfileFromString(const juce::String& base64)
+void DusterEngine::restoreProfileFromString(const juce::String& base64)
 {
     if (base64.isEmpty())
         return;

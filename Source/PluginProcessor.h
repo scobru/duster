@@ -2,14 +2,14 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
-#include "DSP/SpectralDenoiserEngine.h"
+#include "DSP/DusterEngine.h"
 #include "DSP/SpectrumAnalyzerBridge.h"
 
-class SpectraDenoiserAudioProcessor : public juce::AudioProcessor
+class DusterAudioProcessor : public juce::AudioProcessor
 {
 public:
-    SpectraDenoiserAudioProcessor();
-    ~SpectraDenoiserAudioProcessor() override;
+    DusterAudioProcessor();
+    ~DusterAudioProcessor() override;
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
@@ -39,7 +39,7 @@ public:
 
     // APVTS
     juce::AudioProcessorValueTreeState& getAPVTS() { return apvts; }
-    dsp::SpectralDenoiserEngine& getEngine() { return denoiserEngine; }
+    dsp::DusterEngine& getEngine() { return denoiserEngine; }
     dsp::SpectrumAnalyzerBridge& getSpectrumBridge() { return spectrumBridge; }
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -50,7 +50,7 @@ public:
 
 private:
     juce::AudioProcessorValueTreeState apvts;
-    dsp::SpectralDenoiserEngine denoiserEngine;
+    dsp::DusterEngine denoiserEngine;
     dsp::SpectrumAnalyzerBridge spectrumBridge;
 
     // Cached raw parameter pointers for audio thread performance
@@ -63,5 +63,5 @@ private:
     std::atomic<float>* qualityParam { nullptr };
     std::atomic<float>* learnParam { nullptr };
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SpectraDenoiserAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DusterAudioProcessor)
 };

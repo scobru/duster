@@ -1,7 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-SpectraDenoiserAudioProcessor::SpectraDenoiserAudioProcessor()
+DusterAudioProcessor::DusterAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
      : AudioProcessor (BusesProperties()
                      #if ! JucePlugin_IsMidiEffect
@@ -26,11 +26,11 @@ SpectraDenoiserAudioProcessor::SpectraDenoiserAudioProcessor()
     learnParam          = apvts.getRawParameterValue("learn");
 }
 
-SpectraDenoiserAudioProcessor::~SpectraDenoiserAudioProcessor()
+DusterAudioProcessor::~DusterAudioProcessor()
 {
 }
 
-juce::AudioProcessorValueTreeState::ParameterLayout SpectraDenoiserAudioProcessor::createParameterLayout()
+juce::AudioProcessorValueTreeState::ParameterLayout DusterAudioProcessor::createParameterLayout()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
@@ -100,12 +100,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout SpectraDenoiserAudioProcesso
     return { params.begin(), params.end() };
 }
 
-const juce::String SpectraDenoiserAudioProcessor::getName() const
+const juce::String DusterAudioProcessor::getName() const
 {
     return JucePlugin_Name;
 }
 
-bool SpectraDenoiserAudioProcessor::acceptsMidi() const
+bool DusterAudioProcessor::acceptsMidi() const
 {
    #if JucePlugin_WantsMidiInput
     return true;
@@ -114,7 +114,7 @@ bool SpectraDenoiserAudioProcessor::acceptsMidi() const
    #endif
 }
 
-bool SpectraDenoiserAudioProcessor::producesMidi() const
+bool DusterAudioProcessor::producesMidi() const
 {
    #if JucePlugin_ProducesMidiOutput
     return true;
@@ -123,7 +123,7 @@ bool SpectraDenoiserAudioProcessor::producesMidi() const
    #endif
 }
 
-bool SpectraDenoiserAudioProcessor::isMidiEffect() const
+bool DusterAudioProcessor::isMidiEffect() const
 {
    #if JucePlugin_IsMidiEffect
     return true;
@@ -132,46 +132,46 @@ bool SpectraDenoiserAudioProcessor::isMidiEffect() const
    #endif
 }
 
-double SpectraDenoiserAudioProcessor::getTailLengthSeconds() const
+double DusterAudioProcessor::getTailLengthSeconds() const
 {
     return 0.0;
 }
 
-int SpectraDenoiserAudioProcessor::getNumPrograms()
+int DusterAudioProcessor::getNumPrograms()
 {
     return 1;
 }
 
-int SpectraDenoiserAudioProcessor::getCurrentProgram()
+int DusterAudioProcessor::getCurrentProgram()
 {
     return 0;
 }
 
-void SpectraDenoiserAudioProcessor::setCurrentProgram(int)
+void DusterAudioProcessor::setCurrentProgram(int)
 {
 }
 
-const juce::String SpectraDenoiserAudioProcessor::getProgramName(int)
+const juce::String DusterAudioProcessor::getProgramName(int)
 {
     return {};
 }
 
-void SpectraDenoiserAudioProcessor::changeProgramName(int, const juce::String&)
+void DusterAudioProcessor::changeProgramName(int, const juce::String&)
 {
 }
 
-void SpectraDenoiserAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
+void DusterAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     denoiserEngine.prepare(sampleRate, samplesPerBlock, getTotalNumInputChannels());
     setLatencySamples(denoiserEngine.getLatencySamples());
 }
 
-void SpectraDenoiserAudioProcessor::releaseResources()
+void DusterAudioProcessor::releaseResources()
 {
     denoiserEngine.reset();
 }
 
-bool SpectraDenoiserAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
+bool DusterAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
   #if JucePlugin_IsMidiEffect
     juce::ignoreUnused (layouts);
@@ -190,7 +190,7 @@ bool SpectraDenoiserAudioProcessor::isBusesLayoutSupported(const BusesLayout& la
   #endif
 }
 
-void SpectraDenoiserAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
+void DusterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
     juce::ScopedNoDenormals noDenormals;
     auto totalNumInputChannels  = getTotalNumInputChannels();
@@ -225,7 +225,7 @@ void SpectraDenoiserAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
         setLatencySamples(denoiserEngine.getLatencySamples());
 }
 
-void SpectraDenoiserAudioProcessor::toggleLearning(bool shouldLearn)
+void DusterAudioProcessor::toggleLearning(bool shouldLearn)
 {
     if (auto* param = apvts.getParameter("learn"))
     {
@@ -233,23 +233,23 @@ void SpectraDenoiserAudioProcessor::toggleLearning(bool shouldLearn)
     }
 }
 
-void SpectraDenoiserAudioProcessor::clearProfile()
+void DusterAudioProcessor::clearProfile()
 {
     denoiserEngine.clearNoiseProfile();
     toggleLearning(false);
 }
 
-bool SpectraDenoiserAudioProcessor::hasEditor() const
+bool DusterAudioProcessor::hasEditor() const
 {
     return true;
 }
 
-juce::AudioProcessorEditor* SpectraDenoiserAudioProcessor::createEditor()
+juce::AudioProcessorEditor* DusterAudioProcessor::createEditor()
 {
-    return new SpectraDenoiserAudioProcessorEditor(*this);
+    return new DusterAudioProcessorEditor(*this);
 }
 
-void SpectraDenoiserAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
+void DusterAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     auto state = apvts.copyState();
     state.setProperty("noiseProfileData", denoiserEngine.getSerializedProfile(), nullptr);
@@ -258,7 +258,7 @@ void SpectraDenoiserAudioProcessor::getStateInformation(juce::MemoryBlock& destD
     copyXmlToBinary(*xml, destData);
 }
 
-void SpectraDenoiserAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
+void DusterAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
 
@@ -280,5 +280,5 @@ void SpectraDenoiserAudioProcessor::setStateInformation(const void* data, int si
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-    return new SpectraDenoiserAudioProcessor();
+    return new DusterAudioProcessor();
 }

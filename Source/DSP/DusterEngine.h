@@ -41,11 +41,11 @@ struct DenoiserParameters
  * Uses WOLA (Weighted Overlap-Add) STFT with Decision-Directed Wiener
  * filtering and Spectral Subtraction for artifact-free noise reduction.
  */
-class SpectralDenoiserEngine
+class DusterEngine
 {
 public:
-    SpectralDenoiserEngine();
-    ~SpectralDenoiserEngine() = default;
+    DusterEngine();
+    ~DusterEngine() = default;
 
     void prepare(double sampleRate, int maxBlockSize, int numChannels);
     void reset();

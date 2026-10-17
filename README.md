@@ -1,4 +1,4 @@
-# Spectra Denoiser (VST3 / AU / Standalone)
+# Duster (VST3 / AU / Standalone)
 
 > **Plugin professionale di riduzione del rumore spettrale ispirato a BlueLab (BL) Denoiser, con cattura del profilo di rumore (Learn), soppressione del rumore musicale (Residual Smooth), preservazione dei transienti (Transient Boost) e visualizzatore FFT in tempo reale.**
 
@@ -6,7 +6,7 @@
 
 ## 🎧 Caratteristiche Principali (Confronto con BL Denoiser)
 
-| Funzionalità | BL Denoiser (v5.1.2) | Spectra Denoiser |
+| Funzionalità | BL Denoiser (v5.1.2) | Duster |
 | :--- | :--- | :--- |
 | **Apprendimento Rumore** | Tasto Learn su sezione rumorosa | ✅ Tasto `LEARN NOISE` con radar di scansione e salvataggio stato |
 | **Ascolto Rumore Estratto** | Listen noise only | ✅ Modalità `Noise Only (Delta)` con ritardo compensato al campione |
@@ -55,50 +55,48 @@
 
 ## 📁 Posizione dei File Compilati
 
-Troverai i binari già pronti nella cartella di build:
+Troverai i binari nella cartella di build:
 - **Plugin VST3 (Windows)**:
-  `D:\spectral-denoiser\build\SpectraDenoiser_artefacts\Release\VST3\Spectra Denoiser.vst3`
+  `build\Duster_artefacts\Release\VST3\Duster.vst3`
 - **Applicazione Standalone (Windows .exe)**:
-  `D:\spectral-denoiser\build\SpectraDenoiser_artefacts\Release\Standalone\Spectra Denoiser.exe`
+  `build\Duster_artefacts\Release\Standalone\Duster.exe`
 
 ### Come installarlo nella tua DAW su Windows (Ableton, FL Studio, Cubase, Reaper, etc.)
-Copia l'intera cartella o il file `Spectra Denoiser.vst3` nella cartella VST3 standard di Windows:
+Copia l'intera cartella o il file `Duster.vst3` nella cartella VST3 standard di Windows:
 ```
 C:\Program Files\Common Files\VST3\
 ```
-Fai una scansione dei plugin nella tua DAW e troverai **Spectra Denoiser** sotto la categoria "AcousticLab" o "Restoration/Denoiser".
+Oppure esegui `install_vst3.bat` come amministratore. Fai una scansione dei plugin nella tua DAW e troverai **Duster** sotto la categoria "AcousticLab" o "Restoration/Denoiser".
 
 ---
 
 ## 🍎 Compilazione su macOS per AU (AudioUnit) e VST3
 
 Il progetto è basato su CMake nativo con supporto integrato per macOS:
-1. Clona la cartella su Mac con Git.
+1. Clona la cartella su Mac con Git (`git clone https://github.com/scobru/duster.git`).
 2. Esegui nel terminale:
    ```bash
    cmake -B build -G Xcode
    cmake --build build --config Release
    ```
-3. Troverai sia il componente **AU** (`Spectra Denoiser.component`) per Logic Pro e GarageBand, sia il **VST3** (`Spectra Denoiser.vst3`).
+3. Troverai sia il componente **AU** (`Duster.component`) per Logic Pro e GarageBand, sia il **VST3** (`Duster.vst3`).
 
 ---
 
 ## 🧱 Struttura del Codice
 
 ```
-d:\spectral-denoiser\
+duster/
 ├── CMakeLists.txt                    # Configurazione CMake per VST3, AU, Standalone
 ├── JUCE\                             # Framework JUCE 7.0.12
 ├── Source\
 │   ├── PluginProcessor.h / .cpp      # Gestione parametri APVTS, latenza e stato DAW
 │   ├── PluginEditor.h / .cpp         # Layout interfaccia grafica e controlli
 │   ├── DSP\
-│   │   ├── SpectralDenoiserEngine.h  # Motore STFT WOLA, Decision-Directed Wiener & Learn
-│   │   ├── SpectralDenoiserEngine.cpp
+│   │   ├── DusterEngine.h / .cpp     # Motore STFT WOLA, Decision-Directed Wiener & Learn
 │   │   └── SpectrumAnalyzerBridge.h  # Bridge lock-free tra audio thread e GUI
 │   └── GUI\
 │       ├── CustomRotarySlider.h      # Manopole rotative personalizzate
-│       ├── SpectraVisualizer.h       # Visualizzatore spettrale FFT a 40 FPS
-│       └── SpectraVisualizer.cpp
+│       ├── DusterVisualizer.h / .cpp # Visualizzatore spettrale FFT a 40 FPS
 └── build\                            # Output di compilazione
 ```

@@ -8,11 +8,11 @@
 namespace gui
 {
 
-class SpectraVisualizer : public juce::Component, public juce::Timer
+class DusterVisualizer : public juce::Component, public juce::Timer
 {
 public:
-    SpectraVisualizer(dsp::SpectrumAnalyzerBridge& bridge);
-    ~SpectraVisualizer() override;
+    DusterVisualizer(dsp::SpectrumAnalyzerBridge& bridge);
+    ~DusterVisualizer() override;
 
     void paint(juce::Graphics& g) override;
     void resized() override;

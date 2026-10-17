@@ -1,10 +1,10 @@
-#include "SpectraVisualizer.h"
+#include "DusterVisualizer.h"
 #include <cmath>
 
 namespace gui
 {
 
-SpectraVisualizer::SpectraVisualizer(dsp::SpectrumAnalyzerBridge& bridge)
+DusterVisualizer::DusterVisualizer(dsp::SpectrumAnalyzerBridge& bridge)
     : spectrumBridge(bridge)
 {
     inputMagnitudes.resize(2048, -100.0f);
@@ -17,15 +17,16 @@ SpectraVisualizer::SpectraVisualizer(dsp::SpectrumAnalyzerBridge& bridge)
     startTimerHz(40); // 40 FPS silky visualizer
 }
 
-SpectraVisualizer::~SpectraVisualizer()
+DusterVisualizer::~DusterVisualizer()
 {
     stopTimer();
 }
 
-void SpectraVisualizer::timerCallback()
+void DusterVisualizer::timerCallback()
 {
     int updatedBins = numBins;
     bool hasNewData = spectrumBridge.fetchSpectra(inputMagnitudes, outputMagnitudes, noiseProfileMagnitudes, updatedBins);
+    juce::ignoreUnused(hasNewData);
     if (updatedBins > 0)
         numBins = updatedBins;
 
@@ -56,11 +57,11 @@ void SpectraVisualizer::timerCallback()
     repaint();
 }
 
-void SpectraVisualizer::resized()
+void DusterVisualizer::resized()
 {
 }
 
-float SpectraVisualizer::mapFreqToX(float freq, float width) const
+float DusterVisualizer::mapFreqToX(float freq, float width) const
 {
     const float minFreq = 20.0f;
     const float maxFreq = 20000.0f;
@@ -70,7 +71,7 @@ float SpectraVisualizer::mapFreqToX(float freq, float width) const
     return width * (std::log10(freq / minFreq) / std::log10(maxFreq / minFreq));
 }
 
-float SpectraVisualizer::mapDbToY(float db, float height) const
+float DusterVisualizer::mapDbToY(float db, float height) const
 {
     const float maxDb = 0.0f;
     const float minDb = -90.0f;
@@ -78,7 +79,7 @@ float SpectraVisualizer::mapDbToY(float db, float height) const
     return height * (maxDb - clamped) / (maxDb - minDb);
 }
 
-void SpectraVisualizer::paint(juce::Graphics& g)
+void DusterVisualizer::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat();
     const float w = bounds.getWidth();

@@ -2,6 +2,7 @@
 build/
 cmake-build-*/
 out/
+Duster_artefacts/
 SpectraDenoiser_artefacts/
 x64/
 x86/

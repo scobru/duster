@@ -1,20 +1,20 @@
 @echo off
 echo ========================================================
-echo   Installazione Spectra Denoiser VST3 nella DAW...
+echo   Installazione Duster VST3 nella DAW...
 echo ========================================================
 
-set "SRC=%~dp0Spectra Denoiser.vst3"
+set "SRC=%~dp0Duster.vst3"
 if not exist "%SRC%" (
-    set "SRC=%~dp0build\SpectraDenoiser_artefacts\Release\VST3\Spectra Denoiser.vst3"
+    set "SRC=%~dp0build\Duster_artefacts\Release\VST3\Duster.vst3"
 )
 
-set "DEST=C:\Program Files\Common Files\VST3\Spectra Denoiser.vst3"
+set "DEST=C:\Program Files\Common Files\VST3\Duster.vst3"
 
 if not exist "%SRC%" (
     echo [ERRORE] Il file VST3 non e stato trovato ne in:
-    echo   "%~dp0Spectra Denoiser.vst3"
+    echo   "%~dp0Duster.vst3"
     echo ne in:
-    echo   "%~dp0build\SpectraDenoiser_artefacts\Release\VST3\Spectra Denoiser.vst3"
+    echo   "%~dp0build\Duster_artefacts\Release\VST3\Duster.vst3"
     echo.
     echo Assicurati di aver compilato il progetto o estratto lo zip completo.
     pause

@@ -36,28 +36,28 @@ jobs:
       - name: Package macOS Artifacts
         run: |
           mkdir -p artifacts
-          cd build/SpectraDenoiser_artefacts/Release
+          cd build/Duster_artefacts/Release
           
           # Copia i componenti AU, VST3 e Standalone
           mkdir -p ../../../artifacts/macOS
-          if [ -d "AU/Spectra Denoiser.component" ]; then
-            cp -R "AU/Spectra Denoiser.component" ../../../artifacts/macOS/
+          if [ -d "AU/Duster.component" ]; then
+            cp -R "AU/Duster.component" ../../../artifacts/macOS/
           fi
-          if [ -d "VST3/Spectra Denoiser.vst3" ]; then
-            cp -R "VST3/Spectra Denoiser.vst3" ../../../artifacts/macOS/
+          if [ -d "VST3/Duster.vst3" ]; then
+            cp -R "VST3/Duster.vst3" ../../../artifacts/macOS/
           fi
-          if [ -d "Standalone/Spectra Denoiser.app" ]; then
-            cp -R "Standalone/Spectra Denoiser.app" ../../../artifacts/macOS/
+          if [ -d "Standalone/Duster.app" ]; then
+            cp -R "Standalone/Duster.app" ../../../artifacts/macOS/
           fi
           
           cd ../../../artifacts
-          zip -r -y SpectraDenoiser-macOS-Universal.zip macOS/
+          zip -r -y Duster-macOS-Universal.zip macOS/
 
       - name: Upload macOS Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SpectraDenoiser-macOS
-          path: artifacts/SpectraDenoiser-macOS-Universal.zip
+          name: Duster-macOS
+          path: artifacts/Duster-macOS-Universal.zip
           retention-days: 30
 
   build-windows:
@@ -83,23 +83,23 @@ jobs:
           New-Item -ItemType Directory -Force -Path artifacts\Windows | Out-Null
           
           # VST3 bundle
-          Copy-Item -Recurse "build\SpectraDenoiser_artefacts\Release\VST3\Spectra Denoiser.vst3" "artifacts\Windows\"
+          Copy-Item -Recurse "build\Duster_artefacts\Release\VST3\Duster.vst3" "artifacts\Windows\"
           
           # Standalone .exe
-          Copy-Item "build\SpectraDenoiser_artefacts\Release\Standalone\Spectra Denoiser.exe" "artifacts\Windows\"
+          Copy-Item "build\Duster_artefacts\Release\Standalone\Duster.exe" "artifacts\Windows\"
           
           # Helper scripts & README
           Copy-Item "install_vst3.bat" "artifacts\Windows\"
           Copy-Item "run_standalone.bat" "artifacts\Windows\"
           Copy-Item "README.md" "artifacts\Windows\"
           
-          Compress-Archive -Path artifacts\Windows\* -DestinationPath artifacts\SpectraDenoiser-Windows-x64.zip
+          Compress-Archive -Path artifacts\Windows\* -DestinationPath artifacts\Duster-Windows-x64.zip
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SpectraDenoiser-Windows
-          path: artifacts/SpectraDenoiser-Windows-x64.zip
+          name: Duster-Windows
+          path: artifacts/Duster-Windows-x64.zip
           retention-days: 30
 
   release:
@@ -113,13 +113,13 @@ jobs:
       - name: Download macOS Artifact
         uses: actions/download-artifact@v4
         with:
-          name: SpectraDenoiser-macOS
+          name: Duster-macOS
           path: release-assets/
 
       - name: Download Windows Artifact
         uses: actions/download-artifact@v4
         with:
-          name: SpectraDenoiser-Windows
+          name: Duster-Windows
           path: release-assets/
 
       - name: Create Release
