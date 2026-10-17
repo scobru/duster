@@ -1,4 +1,7 @@
-# Duster (VST3 / AU / Standalone)
+# Duster (VST3 / AU / AAX / Standalone)
+
+[![Build Audio Plugins](https://github.com/scobru/duster/actions/workflows/build.yml/badge.svg)](https://github.com/scobru/duster/actions/workflows/build.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/scobru/duster?color=blue)](https://github.com/scobru/duster/releases)
 
 > **Plugin professionale di riduzione del rumore spettrale ispirato a BlueLab (BL) Denoiser, con cattura del profilo di rumore (Learn), soppressione del rumore musicale (Residual Smooth), preservazione dei transienti (Transient Boost) e visualizzatore FFT in tempo reale.**
 
@@ -14,7 +17,7 @@
 | **Transient Boost** | Aumento attacco/transienti | ✅ Rivelatore di flusso spettrale con boost dinamico degli attacchi |
 | **Qualità FFT** | Parametro Fast / High quality | ✅ Selettore FFT: Fast (1024), Standard (2048), High (4096) |
 | **Interfaccia Grafica** | Analizzatore standard | ✅ UI moderna Dark Mode con spettro FFT in tempo reale e curva profilo |
-| **Supporto Formati** | VST, AU | ✅ **VST3**, **AU (AudioUnit)** e **Standalone .exe** |
+| **Supporto Formati** | VST, AU | ✅ **VST3**, **AU (AudioUnit)**, **AAX (Pro Tools)** e **Standalone** |
 
 ---
 
@@ -55,11 +58,13 @@
 
 ## 📁 Posizione dei File Compilati
 
-Troverai i binari nella cartella di build:
+Troverai i binari nella cartella di build (oppure precompilati su [GitHub Releases](https://github.com/scobru/duster/releases)):
 - **Plugin VST3 (Windows)**:
   `build\Duster_artefacts\Release\VST3\Duster.vst3`
 - **Applicazione Standalone (Windows .exe)**:
   `build\Duster_artefacts\Release\Standalone\Duster.exe`
+- **Plugin AAX per Pro Tools (se SDK presente)**:
+  `build\Duster_artefacts\Release\AAX\Duster.aaxplugin`
 
 ### Come installarlo nella tua DAW su Windows (Ableton, FL Studio, Cubase, Reaper, etc.)
 Copia l'intera cartella o il file `Duster.vst3` nella cartella VST3 standard di Windows:
@@ -70,7 +75,23 @@ Oppure esegui `install_vst3.bat` come amministratore. Fai una scansione dei plug
 
 ---
 
-## 🍎 Compilazione su macOS per AU (AudioUnit) e VST3
+## 🎚️ Compatibilità con Avid Pro Tools (AAX)
+
+Il progetto supporta la generazione nativa del target **AAX** per Avid Pro Tools tramite CMake e JUCE:
+
+1. **Compilazione Nativa AAX**:
+   - Scarica l'AAX SDK da [Avid Developer Central](https://developer.avid.com) e collocalo nella directory radice come `aax-sdk/` oppure imposta la variabile d'ambiente `JUCE_AAX_SDK_PATH`.
+   - Il target `Duster_AAX` verrà abilitato automaticamente durante la configurazione CMake (`set(DUSTER_FORMATS VST3 AU Standalone AAX)`).
+   - In macOS il file prodotto è `Duster.aaxplugin` (destinazione `/Library/Application Support/Avid/Audio/Plug-Ins/`).
+   - In Windows il bundle `Duster.aaxplugin` va in `C:\Program Files\Common Files\Avid\Audio\Plug-Ins\`.
+   - *Nota per Pro Tools Retail*: Per caricare binari AAX in Pro Tools commerciale è necessaria la firma digitale PACE Eden (`wraptool` con certificato Avid/iLok). Nelle edizioni Pro Tools Developer Edition è possibile caricare anche il binario senza firma PACE.
+
+2. **Utilizzo immediato in Pro Tools tramite wrapper VST3**:
+   - Puoi caricare direttamente **Duster.vst3** dentro qualsiasi versione di Pro Tools usando wrapper professionali AAX come **Blue Cat's PatchWork** o **DDMF Metaplugin**, senza richiedere alcuna firma PACE proprietaria.
+
+---
+
+## 🍎 Compilazione su macOS per AU (AudioUnit), VST3 e AAX
 
 Il progetto è basato su CMake nativo con supporto integrato per macOS:
 1. Clona la cartella su Mac con Git (`git clone https://github.com/scobru/duster.git`).
@@ -79,7 +100,7 @@ Il progetto è basato su CMake nativo con supporto integrato per macOS:
    cmake -B build -G Xcode
    cmake --build build --config Release
    ```
-3. Troverai sia il componente **AU** (`Duster.component`) per Logic Pro e GarageBand, sia il **VST3** (`Duster.vst3`).
+3. Troverai il componente **AU** (`Duster.component`) per Logic Pro e GarageBand, il **VST3** (`Duster.vst3`) e **AAX** (`Duster.aaxplugin`).
 
 ---
 

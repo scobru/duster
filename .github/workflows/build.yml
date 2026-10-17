@@ -1,4 +1,4 @@
-name: Build Audio Plugins (VST3, AU, Standalone)
+name: Build Audio Plugins (VST3, AU, AAX, Standalone)
 
 on:
   push:
@@ -7,6 +7,17 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Publish as GitHub Release'
+        required: false
+        type: boolean
+        default: false
+      tag_name:
+        description: 'Tag name for release (optional, e.g. v1.0.1)'
+        required: false
+        type: string
+        default: ''
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -35,11 +46,10 @@ jobs:
 
       - name: Package macOS Artifacts
         run: |
-          mkdir -p artifacts
+          mkdir -p artifacts/macOS
           cd build/Duster_artefacts/Release
           
-          # Copia i componenti AU, VST3 e Standalone
-          mkdir -p ../../../artifacts/macOS
+          # Copia i componenti AU, VST3, Standalone e AAX (Pro Tools)
           if [ -d "AU/Duster.component" ]; then
             cp -R "AU/Duster.component" ../../../artifacts/macOS/
           fi
@@ -49,8 +59,12 @@ jobs:
           if [ -d "Standalone/Duster.app" ]; then
             cp -R "Standalone/Duster.app" ../../../artifacts/macOS/
           fi
+          if [ -d "AAX/Duster.aaxplugin" ]; then
+            cp -R "AAX/Duster.aaxplugin" ../../../artifacts/macOS/
+          fi
           
           cd ../../../artifacts
+          cp ../README.md macOS/ || true
           zip -r -y Duster-macOS-Universal.zip macOS/
 
       - name: Upload macOS Artifact
@@ -83,15 +97,24 @@ jobs:
           New-Item -ItemType Directory -Force -Path artifacts\Windows | Out-Null
           
           # VST3 bundle
-          Copy-Item -Recurse "build\Duster_artefacts\Release\VST3\Duster.vst3" "artifacts\Windows\"
+          if (Test-Path "build\Duster_artefacts\Release\VST3\Duster.vst3") {
+            Copy-Item -Recurse "build\Duster_artefacts\Release\VST3\Duster.vst3" "artifacts\Windows\"
+          }
           
           # Standalone .exe
-          Copy-Item "build\Duster_artefacts\Release\Standalone\Duster.exe" "artifacts\Windows\"
+          if (Test-Path "build\Duster_artefacts\Release\Standalone\Duster.exe") {
+            Copy-Item "build\Duster_artefacts\Release\Standalone\Duster.exe" "artifacts\Windows\"
+          }
+          
+          # AAX bundle (Pro Tools)
+          if (Test-Path "build\Duster_artefacts\Release\AAX\Duster.aaxplugin") {
+            Copy-Item -Recurse "build\Duster_artefacts\Release\AAX\Duster.aaxplugin" "artifacts\Windows\"
+          }
           
           # Helper scripts & README
-          Copy-Item "install_vst3.bat" "artifacts\Windows\"
-          Copy-Item "run_standalone.bat" "artifacts\Windows\"
-          Copy-Item "README.md" "artifacts\Windows\"
+          if (Test-Path "install_vst3.bat") { Copy-Item "install_vst3.bat" "artifacts\Windows\" }
+          if (Test-Path "run_standalone.bat") { Copy-Item "run_standalone.bat" "artifacts\Windows\" }
+          if (Test-Path "README.md") { Copy-Item "README.md" "artifacts\Windows\" }
           
           Compress-Archive -Path artifacts\Windows\* -DestinationPath artifacts\Duster-Windows-x64.zip
 
@@ -104,7 +127,7 @@ jobs:
 
   release:
     name: Create GitHub Release
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.create_release)
     needs: [ build-macos, build-windows ]
     runs-on: ubuntu-latest
     permissions:
@@ -125,6 +148,7 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ (inputs.tag_name != '' && inputs.tag_name) || github.ref_name }}
           files: release-assets/*
           generate_release_notes: true
           draft: false
